@@ -17,7 +17,6 @@ forward OnHousesLoaded();
 enum E_HOUSE
 {
     hdbID,
-    hOwner[MAX_PLAYER_NAME + 1],
     hName[MAX_HOUSE_NAME],
     hOwned
 }
@@ -89,13 +88,9 @@ public OnPlayerLoaded(playerid)
 }
 
 LoadHouses()
-{    
-    new
-        query[128]
-    ;
-
-    mysql_format(handle, query, sizeof query, "SELECT * FROM houses");
-    mysql_tquery(handle, query, "OnHousesLoaded");
+{
+    //COALESCE is good as well
+    mysql_tquery(handle, "SELECT h.*, IFNULL((SELECT 1 FROM player_houses WHERE house_id = h.id), 0) AS owned FROM houses h", "OnHousesLoaded");
 }
 
 public OnHousesLoaded()
