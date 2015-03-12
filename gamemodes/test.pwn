@@ -1,6 +1,6 @@
 #include <a_samp>
 #include <YSI\y_utils>
-
+#include <YSI\y_iterate>
 #include <a_mysql>
 
 forward OnPlayerLoaded(playerid);
@@ -30,14 +30,18 @@ enum E_PLAYER
 new
     handle,
     House[MAX_HOUSES][E_HOUSE],
+    Iterator:House<MAX_HOUSES>,
     Player[MAX_PLAYERS][E_PLAYER],
-    PlayerHouse[MAX_PLAYERS][MAX_PLAYER_HOUSES]
+    PlayerHouse[MAX_PLAYERS][MAX_PLAYER_HOUSES],
+    Iterator:PlayerHouse[MAX_PLAYERS]<MAX_PLAYER_HOUSES>
 ;
 
 public OnGameModeInit()
 {
     handle = mysql_connect("localhost", "root", "test", "");
     //Do some handle checking first!
+
+    Iter_Init(PlayerHouse);
 
     memset(PlayerHouse[0], INVALID_HOUSE_INDEX, MAX_PLAYERS * MAX_PLAYER_HOUSES);
 
@@ -56,8 +60,8 @@ public OnPlayerConnect(playerid)
     mysql_format(handle, query, sizeof query, "SELECT p.*, ph.house_id FROM players p LEFT JOIN player_houses ph ON ph.player_id = p.id WHERE p.name = %e LIMIT 1", Player[playerid][pName]);
     mysql_tquery(handle, query, "OnPlayerLoaded", "d", "playerid");
 
-    //Reuse them apples
-    for (new house = 0; house != MAX_HOUSES; ++house) {
+    foreach(new house : House)
+    {
         format(query, sizeof query, "House %s is owned by %s", House[house][hName], House[house][hOwner]);
         SendClientMessage(playerid, COLOUR_INFO, query);
     }
@@ -78,23 +82,25 @@ public OnPlayerLoaded(playerid)
     }
 
     for (new row = 0; row != rows; ++row) {
-        PlayerHouse[playerid][row] = cache_get_field_content_int(row, "house", handle);        
+        PlayerHouse[playerid][row] = cache_get_field_content_int(row, "house", handle);    
+        Iter_Add(PlayerHouse[playerid], row);    
     }
 
-    for (new playerHouse = 0; playerHouse != MAX_PLAYER_HOUSES; ++playerHouse) {
-        for (new house = 0; house != MAX_HOUSES; ++house) {
+    for(new playerHouse = 0; playerHouse != rows; ++playerHouse)
+    {
+        foreach(new house : House)
+        {
             if (PlayerHouse[playerid][playerHouse] == House[house][hdbID]) {
                 PlayerHouse[playerid][playerHouse] = house;
+                Iter_Add(PlayerHouse[playerid], playerHouse);
+
                 break;
             }
         }
-
-        PlayerHouse[playerid][playerHouse] = INVALID_HOUSE_INDEX;
     }
 
-    for (new house = 0; house != MAX_PLAYER_HOUSES; ++house) {
-        if (INVALID_HOUSE_INDEX != PlayerHouse[playerid][house]) continue;
-
+    foreach(new house : PlayerHouse[playerid])
+    {  
         format(string, sizeof string, "You own house named %s", House[house][hName]);
         SendClientMessage(playerid, COLOUR_INFO, string);
     }
@@ -127,6 +133,7 @@ public OnHousesLoaded()
         House[row][hdbID] = cache_get_field_content_int(row, "id", handle);
         cache_get_field_content(row, "name", House[row][hName], handle, MAX_HOUSE_NAME);
         cache_get_field_content(row, "player_name", House[row][hOwner], handle, MAX_PLAYER_NAME);
+        Iter_Add(House, row);
     }
 
     return 1;
