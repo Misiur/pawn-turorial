@@ -1,12 +1,18 @@
 #include <a_samp>
+#include <YSI\y_utils>
+
 #include <a_mysql>
 
 forward OnPlayerLoaded(playerid);
 forward OnHousesLoaded();
 
-#define MAX_HOUSES      300
-#define MAX_HOUSE_NAME  32
+#define MAX_HOUSES          300
+#define MAX_HOUSE_NAME      32
+#define INVALID_HOUSE_INDEX -1
+#define MAX_PLAYER_HOUSES   2
+
 #define COLOUR_INFO     0xBADA55FF
+
 
 enum E_HOUSE
 {
@@ -19,21 +25,22 @@ enum E_HOUSE
 enum E_PLAYER
 {
     pdbID,
-    pName[MAX_PLAYER_NAME + 1],
-    pHouse1,
-    pHouse2
+    pName[MAX_PLAYER_NAME + 1]
 }
 
 new
     handle,
     House[MAX_HOUSES][E_HOUSE],
-    Player[MAX_PLAYERS][E_PLAYER]
+    Player[MAX_PLAYERS][E_PLAYER],
+    PlayerHouse[MAX_PLAYERS][MAX_PLAYER_HOUSES]
 ;
 
 public OnGameModeInit()
 {
     handle = mysql_connect("localhost", "root", "test", "");
     //Do some handle checking first!
+
+    memset(PlayerHouse[0], 0, MAX_PLAYERS * MAX_PLAYER_HOUSES);
 
     LoadHouses();
 
@@ -43,11 +50,11 @@ public OnGameModeInit()
 public OnPlayerConnect(playerid)
 {
     new
-        query[128]
+        query[140]
     ;
 
     GetPlayerName(playerid, Player[playerid][pName], MAX_PLAYER_NAME);
-    mysql_format(handle, query, sizeof query, "SELECT * FROM playerid WHERE name = %e", Player[playerid][pName]);
+    mysql_format(handle, query, sizeof query, "SELECT p.*, ph.house_id FROM players p LEFT JOIN player_houses ph ON ph.player_id = p.id WHERE p.name = %e LIMIT 1", Player[playerid][pName]);
     mysql_tquery(handle, query, "OnPlayerLoaded", "d", "playerid");
 
     return 1;
@@ -56,20 +63,22 @@ public OnPlayerConnect(playerid)
 public OnPlayerLoaded(playerid)
 {
     new
-        string[64]
+        string[64],
+        rows = cache_get_row_count(handle)
     ;
 
-    if (!cache_get_row_count(handle)) {
+    if (!rows) {
         SendClientMessage(playerid, COLOUR_INFO, "Sorry, manually added players only!");
         return Kick(playerid);
     }
 
-    Player[playerid][pHouse1] = cache_get_field_content_int(0, "house1", handle);
-    Player[playerid][pHouse2] = cache_get_field_content_int(0, "house2", handle);
+    for (new row = 0; row != rows; ++row) {
+        PlayerHouse[playerid][row] = cache_get_field_content_int(row, "house", handle);        
+    }
 
     for (new house = 0; house != MAX_HOUSES; ++house) {
-        if (House[house][hOwned]) {
-            if (Player[playerid][pHouse1] == house) {
+        for (new playerHouse = 0; playerHouse != MAX_PLAYER_HOUSES; ++playerHouse) {
+            if (PlayerHouse[playerid][playerHouse] == House[house][hdbID]) {
                 format(string, sizeof string, "You own house named %s", House[house][hName]);
                 SendClientMessage(playerid, COLOUR_INFO, string);
             }
