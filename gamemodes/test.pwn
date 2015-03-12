@@ -17,8 +17,8 @@ forward OnHousesLoaded();
 enum E_HOUSE
 {
     hdbID,
-    hName[MAX_HOUSE_NAME],
-    hOwned
+    hName[MAX_HOUSE_NAME + 1],
+    hOwner[MAX_PLAYER_NAME + 1]
 }
 
 enum E_PLAYER
@@ -56,6 +56,12 @@ public OnPlayerConnect(playerid)
     mysql_format(handle, query, sizeof query, "SELECT p.*, ph.house_id FROM players p LEFT JOIN player_houses ph ON ph.player_id = p.id WHERE p.name = %e LIMIT 1", Player[playerid][pName]);
     mysql_tquery(handle, query, "OnPlayerLoaded", "d", "playerid");
 
+    //Reuse them apples
+    for (new house = 0; house != MAX_HOUSES; ++house) {
+        format(query, sizeof query, "House %s is owned by %s", House[house][hName], House[house][hOwner]);
+        SendClientMessage(playerid, COLOUR_INFO, query);
+    }
+
     return 1;
 }
 
@@ -89,8 +95,7 @@ public OnPlayerLoaded(playerid)
 
 LoadHouses()
 {
-    //COALESCE is good as well
-    mysql_tquery(handle, "SELECT h.*, IFNULL((SELECT 1 FROM player_houses WHERE house_id = h.id), 0) AS owned FROM houses h", "OnHousesLoaded");
+    mysql_tquery(handle, "SELECT h.*, p.name AS player_name FROM houses h LEFT JOIN player_houses ph ON ph.house_id = h.id INNER JOIN players p ON p.id = ph.player_id", "OnHousesLoaded");
 }
 
 public OnHousesLoaded()
@@ -112,7 +117,7 @@ public OnHousesLoaded()
 
         House[row][hdbID] = cache_get_field_content_int(row, "id", handle);
         cache_get_field_content(row, "name", House[row][hName], handle, MAX_HOUSE_NAME);
-        House[row][hOwned] = cache_get_field_content_int(row, "owned", handle);
+        cache_get_field_content(row, "player_name", House[row][hOwner], handle, MAX_PLAYER_NAME);
     }
 
     return 1;
