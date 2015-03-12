@@ -39,7 +39,7 @@ public OnGameModeInit()
     handle = mysql_connect("localhost", "root", "test", "");
     //Do some handle checking first!
 
-    memset(PlayerHouse[0], 0, MAX_PLAYERS * MAX_PLAYER_HOUSES);
+    memset(PlayerHouse[0], INVALID_HOUSE_INDEX, MAX_PLAYERS * MAX_PLAYER_HOUSES);
 
     LoadHouses();
 
@@ -81,13 +81,22 @@ public OnPlayerLoaded(playerid)
         PlayerHouse[playerid][row] = cache_get_field_content_int(row, "house", handle);        
     }
 
-    for (new house = 0; house != MAX_HOUSES; ++house) {
-        for (new playerHouse = 0; playerHouse != MAX_PLAYER_HOUSES; ++playerHouse) {
+    for (new playerHouse = 0; playerHouse != MAX_PLAYER_HOUSES; ++playerHouse) {
+        for (new house = 0; house != MAX_HOUSES; ++house) {
             if (PlayerHouse[playerid][playerHouse] == House[house][hdbID]) {
-                format(string, sizeof string, "You own house named %s", House[house][hName]);
-                SendClientMessage(playerid, COLOUR_INFO, string);
+                PlayerHouse[playerid][playerHouse] = house;
+                break;
             }
         }
+
+        PlayerHouse[playerid][playerHouse] = INVALID_HOUSE_INDEX;
+    }
+
+    for (new house = 0; house != MAX_PLAYER_HOUSES; ++house) {
+        if (INVALID_HOUSE_INDEX != PlayerHouse[playerid][house]) continue;
+
+        format(string, sizeof string, "You own house named %s", House[house][hName]);
+        SendClientMessage(playerid, COLOUR_INFO, string);
     }
 
     return 1;
