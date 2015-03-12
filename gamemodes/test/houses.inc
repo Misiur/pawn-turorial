@@ -29,9 +29,7 @@ new
 hook OnGameModeInit()
 {
     Iter_Init(PlayerHouse);
-
     memset(PlayerHouse[0], INVALID_HOUSE_INDEX, MAX_PLAYERS * MAX_PLAYER_HOUSES);
-
     LoadHouses();
 
     return 1;
@@ -59,35 +57,33 @@ hook OnPlayerConnect(playerid)
     return 1;
 }
 
-public OnHousesLoaded()
-{
-    new
-        rows = cache_get_row_count(handle)
-    ;
-
-    if (!rows) return print("It seems there are no house rows, sorry");
-
-    for (new row = 0; row != rows; ++row) 
-    {
-        if (row == MAX_HOUSES) {
-            printf("Number of houses in your database (%d) is larger than " #MAX_HOUSES " slots can handle", rows);
-
-            //We can't load remaining rows :(
-            break;
-        }
-
-        House[row][hdbID] = cache_get_field_content_int(row, "id", handle);
-        cache_get_field_content(row, "name", House[row][hName], handle, MAX_HOUSE_NAME);
-        cache_get_field_content(row, "player_name", House[row][hOwner], handle, MAX_PLAYER_NAME);
-        Iter_Add(House, row);
-    }
-
-    return 1;
-}
-
 stock LoadHouses()
 {
-    mysql_tquery(handle, "SELECT h.*, p.name AS player_name FROM houses h LEFT JOIN player_houses ph ON ph.house_id = h.id LEFT JOIN players p ON p.id = ph.player_id", "OnHousesLoaded");
+    inline HousesLoaded()
+    {
+        new
+            rows = cache_get_row_count(handle)
+        ;
+
+        if (!rows) return print("It seems there are no house rows, sorry");
+
+        for (new row = 0; row != rows; ++row) 
+        {
+            if (row == MAX_HOUSES) {
+                printf("Number of houses in your database (%d) is larger than " #MAX_HOUSES " slots can handle", rows);
+
+                //We can't load remaining rows :(
+                break;
+            }
+
+            House[row][hdbID] = cache_get_field_content_int(row, "id", handle);
+            cache_get_field_content(row, "name", House[row][hName], handle, MAX_HOUSE_NAME);
+            cache_get_field_content(row, "player_name", House[row][hOwner], handle, MAX_PLAYER_NAME);
+            Iter_Add(House, row);
+        }
+    }
+
+    return mysql_tquery_inline(handle, "SELECT h.*, p.name AS player_name FROM houses h LEFT JOIN player_houses ph ON ph.house_id = h.id LEFT JOIN players p ON p.id = ph.player_id", using inline HousesLoaded, "");
 }
 
 AddPlayerHouse(playerid, index, house) {
