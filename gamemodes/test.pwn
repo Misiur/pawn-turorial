@@ -4,25 +4,29 @@
 forward OnPlayerLoaded(playerid);
 forward OnHousesLoaded();
 
+#define MAX_HOUSES      300
+#define MAX_HOUSE_NAME  32
+#define COLOUR_INFO     0xBADA55FF
+
 enum E_HOUSE
 {
     hdbID,
-    hOwner[MAX_PLAYER_NAME],
-    hName[32],
+    hOwner[MAX_PLAYER_NAME + 1],
+    hName[MAX_HOUSE_NAME],
     hOwned
 }
 
 enum E_PLAYER
 {
     pdbID,
-    pName[MAX_PLAYER_NAME],
+    pName[MAX_PLAYER_NAME + 1],
     pHouse1,
     pHouse2
 }
 
 new
     handle,
-    House[300][E_HOUSE],
+    House[MAX_HOUSES][E_HOUSE],
     Player[MAX_PLAYERS][E_PLAYER]
 ;
 
@@ -56,18 +60,18 @@ public OnPlayerLoaded(playerid)
     ;
 
     if (!cache_get_row_count(handle)) {
-        SendClientMessage(playerid, 0xBADA55FF, "Sorry, manually added players only!");
+        SendClientMessage(playerid, COLOUR_INFO, "Sorry, manually added players only!");
         return Kick(playerid);
     }
 
     Player[playerid][pHouse1] = cache_get_field_content_int(0, "house1", handle);
     Player[playerid][pHouse2] = cache_get_field_content_int(0, "house2", handle);
 
-    for (new house = 0; house != 300; ++house) {
+    for (new house = 0; house != MAX_HOUSES; ++house) {
         if (House[house][hOwned]) {
             if (Player[playerid][pHouse1] == house) {
                 format(string, sizeof string, "You own house named %s", House[house][hName]);
-                SendClientMessage(playerid, 0xBADA55FF, string);
+                SendClientMessage(playerid, COLOUR_INFO, string);
             }
         }
     }
@@ -95,15 +99,15 @@ public OnHousesLoaded()
 
     for (new row = 0; row != rows; ++row) 
     {
-        if (row == 300) {
-            printf("Number of houses in your database (%d) is larger than 300 slots can handle", rows);
+        if (row == MAX_HOUSES) {
+            printf("Number of houses in your database (%d) is larger than " #MAX_HOUSES " slots can handle", rows);
 
             //We can't load remaining rows :(
             break;
         }
 
         House[row][hdbID] = cache_get_field_content_int(row, "id", handle);
-        cache_get_field_content(row, "name", House[row][hName], handle, 32);
+        cache_get_field_content(row, "name", House[row][hName], handle, MAX_HOUSE_NAME);
         House[row][hOwned] = cache_get_field_content_int(row, "owned", handle);
     }
 
